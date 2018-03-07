@@ -1,21 +1,25 @@
 # -*- coding: utf-8 -*-
 def LOG_PLATFORM(str):
-	
-	Log(str)
-	"""
-	import xbmc, xbmcaddon
 	try:
-		xbmc.log("[%s-%s]: %s" %(__addon__.getAddonInfo('id'), xbmcaddon.Addon().getAddonInfo('version'), str), level=xbmc.LOGNOTICE)
-		log_message = str.encode('utf-8', 'ignore')
+		import xbmc, xbmcaddon
+		try:
+			xbmc.log("[%s-%s]: %s" %(xbmcaddon.Addon().getAddonInfo('id'), xbmcaddon.Addon().getAddonInfo('version'), str), level=xbmc.LOGNOTICE)
+			log_message = str.encode('utf-8', 'ignore')
+		except:
+			log_message = 'SC Exception'
+		xbmc.log("[%s-%s]: %s" %(xbmcaddon.Addon().getAddonInfo('id'), xbmcaddon.Addon().getAddonInfo('version'), log_message), level=xbmc.LOGNOTICE)
 	except:
-		log_message = 'SC Exception'
-	xbmc.log("[%s-%s]: %s" %(xbmcaddon.Addon().getAddonInfo('id'), xbmcaddon.Addon().getAddonInfo('version'), log_message), level=xbmc.LOGNOTICE)
-	"""
+		try:
+			Log(str)
+		except:
+			pass
+
 
 from HTMLParser import HTMLParser
 import urllib, urllib2, cookielib
 import json
 import re
+import ssl
 from logic import *
 
 def LOG(str): 
@@ -128,9 +132,11 @@ def GetPodbbangProgramList(category, pageNo='1'):
 	return hasMore, ret
 
 def GetPodtyProgramList(category, pageNo='1'):
+	
 	url = PODTY_URL + '/chart/podty/daily' if category is None else PODTY_URL + '/chart/daily?catId=' + category
 	request = urllib2.Request(url)
-	response = urllib2.urlopen(request)
+	#response = urllib2.urlopen(request)
+	response = urllib2.urlopen(request, context=ssl.SSLContext(ssl.PROTOCOL_TLSv1))
 	data = response.read()
 	regax = 'ranking\">(.*?)<.*\s*.*\s*.*\/cast\/(.*?)\">.*\"\s*(.*?)\"\s*.*alt=\"(.*?)\".*\s*.*\s*.*\">(.*?)\<.*\s*.*\"\>(.*?)\<'
 	p = re.compile(regax)
@@ -152,7 +158,8 @@ def GetPodtyProgramList(category, pageNo='1'):
 def GetPodtyEpisodeList(id, page):
 	url = ('https://www.podty.me/cast/%s/episodes?page=%s&dir=desc' % (id, page))
 	request = urllib2.Request(url)
-	response = urllib2.urlopen(request)
+	#response = urllib2.urlopen(request)
+	response = urllib2.urlopen(request, context=ssl.SSLContext(ssl.PROTOCOL_TLSv1))
 	data = response.read()
 	regax = 'class=\"btnNext\"'
 	has_more = 'Y' if data.find(regax) != -1 else 'N'
@@ -232,7 +239,8 @@ def GetItunesGenre(type, includeSubgenre=False):
 def GetItunesProgramList(url):
 	url = url.replace('/json', '/limit=50/json')
 	request = urllib2.Request(url)
-	response = urllib2.urlopen(request)
+	#response = urllib2.urlopen(request)
+	response = urllib2.urlopen(request, context=ssl.SSLContext(ssl.PROTOCOL_TLSv1))
 	data = json.load(response, encoding='utf8')
 	data = data['feed']
 	list = []
@@ -256,7 +264,8 @@ def GetItunesEpisodeList(id, pageNo):
 	feedurl = data['results'][0]['feedUrl']
 	url = data['results'][0]['trackViewUrl']
 	request = urllib2.Request(url)
-	response = urllib2.urlopen(request)
+	#response = urllib2.urlopen(request)
+	response = urllib2.urlopen(request, context=ssl.SSLContext(ssl.PROTOCOL_TLSv1))
 	data = response.read()
 	regax = 'title=\"(.*?)\".*video-preview-url=\"(.*?)\".*'
 	r = re.compile(regax)
