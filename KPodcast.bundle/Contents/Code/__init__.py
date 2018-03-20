@@ -17,18 +17,33 @@ def MainMenu():
 	try:
 		for menu in TOP_MENU_LIST:
 			tmp = menu.split(':')
-			oc.add(
-			    DirectoryObject(
-				key = 
-				    Callback(
-					Menu,
+			if tmp[1] == 'EBS':
+				oc.add(
+				    DirectoryObject(
+					key = 
+					    Callback(
+						EpisodeList,
+						title = unicode(tmp[0]),
+						type = tmp[1],
+						param = 'dummy'
+					    ),
 					title = unicode(tmp[0]),
-					type = tmp[1]
-				    ),
-				title = unicode(tmp[0]),
-				thumb = R("%s.png" % tmp[1])
-			    )
-			)
+					thumb = R("%s.png" % tmp[1])
+				    )
+				)
+			else:
+				oc.add(
+				    DirectoryObject(
+					key = 
+					    Callback(
+						Menu,
+						title = unicode(tmp[0]),
+						type = tmp[1]
+					    ),
+					title = unicode(tmp[0]),
+					thumb = R("%s.png" % tmp[1])
+				    )
+				)
 	except Exception as e:
 		LOG('<<<Exception>>> MainMenu: %s' % e)
 	return oc
@@ -143,24 +158,30 @@ def EpisodeList(title, type, param, param2=None, pageNo='1'):
 	oc = ObjectContainer(title2 = unicode(title))
 	try:
 		hasMore, data = GetEpisodeList(type, param, pageNo)
+		Log('!!!!!!!!!!!!!!!!!!!!!!! %s ' % hasMore)
+		Log('!!!!!!!!!!!!!!!!!!!!!!! %s ' % data)
+		isUrl = 'N' if type == 'EBS' else 'Y'
 		for item in data:
+			param = item['id'] if type == 'EBS' else item['url']
+			id = item['id'] if type == 'EBS' else ''
 			if item['video'] == 'N' and Client.Product != 'Plex for iOS':
 				oc.add(
 					CreateTrackObject(
-						url = item['url'],
-						title = unicode(item['title']),
-						summary = item['plot'],
-						thumb = None
+						url = param, title = unicode(item['title']), thumb = '', art = ART,
+						summary = unicode(item['plot']), type=type, id = id, isUrl=isUrl,
+						include_container = False
 					)
 				)
 			else:
 				oc.add(
 					CreateVideoClipObject(
-						url = item['url'], title = unicode(item['title']), thumb = None, art = ART,
-						summary = unicode(item['plot']), type=type, save_param=None, 
+						url = param, title = unicode(item['title']), thumb = '', art = ART,
+						summary = unicode(item['summary']), type=type, id = id, isUrl=isUrl,
 						include_container = False
 					)
 				)
+				
+
 		if pageNo != '1':
 			oc.add(DirectoryObject(
 				key = Callback(EpisodeList, title=title, type=type, param=param, pageNo=str(int(pageNo)-1)),
@@ -190,14 +211,13 @@ def Quality(title, type, code, summary, thumb, save_param, music_yn='N'):
 
 ####################################################################################################
 @route(PREFIX + '/CreateVideoClipObject', include_container = bool)
-def CreateVideoClipObject(url, title, thumb, art, summary, type, save_param, 
+def CreateVideoClipObject(url, title, thumb, art, summary, type, id,  isUrl,
                           optimized_for_streaming = True,
                           include_container = False, *args, **kwargs):
-
     vco = VideoClipObject(
         key = Callback(CreateVideoClipObject,
 		url = url, title = title, thumb = thumb, art = art, summary = summary,
-		type=type, save_param=save_param,
+		type=type, id = id, isUrl = isUrl,
 		optimized_for_streaming = optimized_for_streaming,
 		include_container = True),
         rating_key = url,
@@ -209,7 +229,7 @@ def CreateVideoClipObject(url, title, thumb, art, summary, type, save_param,
             MediaObject(
                 parts = [
                     PartObject(
-                        key = HTTPLiveStreamURL(Callback(PlayVideo, url = url, type=type, save_param=save_param))
+                        key = HTTPLiveStreamURL(Callback(PlayVideo, url = url, type=type, id = id, isUrl=isUrl))
                     )
                 ],
                 optimized_for_streaming = optimized_for_streaming,
@@ -224,18 +244,21 @@ def CreateVideoClipObject(url, title, thumb, art, summary, type, save_param,
 
 ####################################################################################################
 @route(PREFIX + '/createtrackobject', include_container = bool)
-def CreateTrackObject(url, title, summary, thumb, include_container=False, *args, **kwargs):
+def CreateTrackObject(url, title, thumb, art, summary, type, id,  isUrl, include_container=False, *args, **kwargs):
 	container = Container.MP4
 	audio_codec = AudioCodec.AAC
 	track_object = TrackObject(
-		key = Callback(CreateTrackObject, url=url, title=title, summary=summary, thumb=thumb, include_container=True),
+		key = Callback(CreateTrackObject, url=url, title=title, thumb=thumb, art=art, summary=summary, type=type, id=id,   isUrl = isUrl, include_container=True),
 		rating_key = url,
 		title = title,
 		summary = summary,
 		items = [
 			MediaObject(
 				parts = [
-					PartObject(key=url)
+					PartObject(
+						#key=url
+						key = Callback(PlayAudio, url=url, type=type, id=id, isUrl=isUrl,)
+					)
 				],
 				container = container,
 				audio_codec = audio_codec,
@@ -253,13 +276,18 @@ def CreateTrackObject(url, title, summary, thumb, include_container=False, *args
 ####################################################################################################
 @indirect
 @route(PREFIX + '/PlayVideo.m3u8')
-def PlayVideo(url, type, save_param):
-	#try:
-	#	if save_param is not None:
-	#		SaveWatchedList(save_param)
-	#except Exception as e:
-	#	LOG('<<<Exception>>> PlayVideo: %s' % e)
+def PlayVideo(url, type, id,  isUrl):
+	if isUrl == 'N': url = GetURL(type, id)
+	LOG('PLAYVIDEO %s' % url)
 	return IndirectResponse(VideoClipObject, key = url)
+
+####################################################################################################
+@indirect
+@route(PREFIX + '/PlayAudio.m3u8')
+def PlayAudio(url, type, id,  isUrl):
+	if isUrl == 'N': url = GetURL(type, id)
+	LOG('PlayAudio %s' % url)
+	return IndirectResponse(TrackObject, key=url)
 
 ####################################################################################################
 @route(PREFIX + '/label')

@@ -1,34 +1,29 @@
 # -*- coding: utf-8 -*-
-def LOG_PLATFORM(str):
-	try:
+def LOG(str):
+	try :
 		import xbmc, xbmcaddon
 		try:
 			xbmc.log("[%s-%s]: %s" %(xbmcaddon.Addon().getAddonInfo('id'), xbmcaddon.Addon().getAddonInfo('version'), str), level=xbmc.LOGNOTICE)
 			log_message = str.encode('utf-8', 'ignore')
 		except:
-			log_message = 'SC Exception'
+			log_message = 'KPODCAST Exception'
 		xbmc.log("[%s-%s]: %s" %(xbmcaddon.Addon().getAddonInfo('id'), xbmcaddon.Addon().getAddonInfo('version'), log_message), level=xbmc.LOGNOTICE)
+		return
 	except:
-		try:
-			Log(str)
-		except:
-			pass
+		pass
 
-
-from HTMLParser import HTMLParser
-import urllib, urllib2, cookielib
-import json
-import re
-import ssl
-from logic import *
-
-def LOG(str): 
-	return LOG_PLATFORM(str)
+	try:
+		Log(str)
+		return
+	except:
+		pass
 
 def ChangeHTMLChar(str):
+	from HTMLParser import HTMLParser
 	return HTMLParser().unescape(str.decode('utf8'))
 
-TOP_MENU_LIST = ['팟빵:PODBBANG', '팟티:PODTY', 'iTunes Podcasts:ITUNES']
+
+TOP_MENU_LIST = ['팟빵:PODBBANG', '팟티:PODTY', 'iTunes Podcasts:ITUNES', 'EBS 오디오북:EBS']
 
 def GetMenuList(type):
 	isPlay = False
@@ -44,7 +39,6 @@ def GetMenuList(type):
 def GetContentList(type, param, pageNo):
 	if type == 'PODBBANG':	return GetPodbbangProgramList(param, pageNo)
 	elif type == 'PODTY':	return GetPodtyProgramList(param, pageNo)
-	elif type == 'EVERYON':	return GetEveryonChannelList(param, pageNo)
 
 def GetEpisodeList(type, id, page):
 	if type == 'PODBBANG':
@@ -53,17 +47,20 @@ def GetEpisodeList(type, id, page):
 		return GetPodtyEpisodeList(id, page)
 	elif type == 'ITUNES':
 		return GetItunesEpisodeList(id, page)
+	elif type == 'EBS':
+		return GetEBSEpisodeList(id, page)
 
 def GetURL(type, param):
-	if type == 'RADIO':
-		return GetRadioURL(param)
-	elif type == 'EVERYON':
-		return GetEveryonURL(param)
-	#elif type == 'SBS': return GetSBSURL(param)
-
+	if type == 'EBS':
+		return GetEBSURL(param)
 
 
 ###############################################################################
+import urllib, urllib2, cookielib
+import json
+import re
+from logic import *
+
 MENU_PODBBANG = [
 	'종합순위:',
 	'시사 및 정치:0',
@@ -115,6 +112,9 @@ def GetPodbbangProgramList(category, pageNo='1'):
 	request = urllib2.Request(url)
 	response = urllib2.urlopen(request)
 	data = response.read()
+	#cate dummy id title dummy summary
+	#regax = 'cate\"\>.*\"\>(.*?)\<(.*\s*){4}.*\/ch\/(.*?)\".*\"\>(.*?)\<(.*\s*){3}.*title\=\"(.*?)\<'
+	#regax = 'cate\"\>.*\"\>(.*?)\<.*\s*.*\s*.*\s*.*\s*.*\/ch\/(.*?)\".*\"\>(.*?)\<.*\s*.*title.*\s*.*title.*\s*.*title\=\"(.*?)'
 	regax = 'cate\"\>.*\"\>(.*?)\<(.*\s*){4}.*\/ch\/(.*?)\".*\"\>(.*?)\<(.*\s*){3}.*title\=\"(.*?)\<.*'
 	r = re.compile(regax)
 	m = r.findall(data)
@@ -132,11 +132,9 @@ def GetPodbbangProgramList(category, pageNo='1'):
 	return hasMore, ret
 
 def GetPodtyProgramList(category, pageNo='1'):
-	
 	url = PODTY_URL + '/chart/podty/daily' if category is None else PODTY_URL + '/chart/daily?catId=' + category
 	request = urllib2.Request(url)
-	#response = urllib2.urlopen(request)
-	response = urllib2.urlopen(request, context=ssl.SSLContext(ssl.PROTOCOL_TLSv1))
+	response = urllib2.urlopen(request)
 	data = response.read()
 	regax = 'ranking\">(.*?)<.*\s*.*\s*.*\/cast\/(.*?)\">.*\"\s*(.*?)\"\s*.*alt=\"(.*?)\".*\s*.*\s*.*\">(.*?)\<.*\s*.*\"\>(.*?)\<'
 	p = re.compile(regax)
@@ -158,8 +156,7 @@ def GetPodtyProgramList(category, pageNo='1'):
 def GetPodtyEpisodeList(id, page):
 	url = ('https://www.podty.me/cast/%s/episodes?page=%s&dir=desc' % (id, page))
 	request = urllib2.Request(url)
-	#response = urllib2.urlopen(request)
-	response = urllib2.urlopen(request, context=ssl.SSLContext(ssl.PROTOCOL_TLSv1))
+	response = urllib2.urlopen(request)
 	data = response.read()
 	regax = 'class=\"btnNext\"'
 	has_more = 'Y' if data.find(regax) != -1 else 'N'
@@ -202,6 +199,11 @@ def GetPodbbangEpisodeList(id, page):
 	return has_more, ret
 
 ###############################################################################
+import urllib, urllib2
+import json
+import re
+from logic import *
+
 MENU_ITUNES = [	'Audio:Audio', 'Video:Video']
 GENRE_LIST_URL = 'http://itunes.apple.com/WebObjects/MZStoreServices.woa/ws/genres?id=26'
 STORE_ID = '143466'  # Korea
@@ -227,6 +229,7 @@ def GetItunesGenre(type, includeSubgenre=False):
 		if includeSubgenre and 'subgenres' in genre:
 			sub_keys = genre['subgenres'].keys()
 			for j in range(0, len(sub_keys)):
+			#for sub_genre in genre['subgenres']:
 				sub_genre = genre['subgenres'][sub_keys[j]]
 				info = {}
 				info['name'] = genre['name'] + ' - ' + sub_genre['name']
@@ -239,8 +242,7 @@ def GetItunesGenre(type, includeSubgenre=False):
 def GetItunesProgramList(url):
 	url = url.replace('/json', '/limit=50/json')
 	request = urllib2.Request(url)
-	#response = urllib2.urlopen(request)
-	response = urllib2.urlopen(request, context=ssl.SSLContext(ssl.PROTOCOL_TLSv1))
+	response = urllib2.urlopen(request)
 	data = json.load(response, encoding='utf8')
 	data = data['feed']
 	list = []
@@ -264,8 +266,7 @@ def GetItunesEpisodeList(id, pageNo):
 	feedurl = data['results'][0]['feedUrl']
 	url = data['results'][0]['trackViewUrl']
 	request = urllib2.Request(url)
-	#response = urllib2.urlopen(request)
-	response = urllib2.urlopen(request, context=ssl.SSLContext(ssl.PROTOCOL_TLSv1))
+	response = urllib2.urlopen(request)
 	data = response.read()
 	regax = 'title=\"(.*?)\".*video-preview-url=\"(.*?)\".*'
 	r = re.compile(regax)
@@ -293,3 +294,38 @@ def GetItunesEpisodeList(id, pageNo):
 			info['plot'] = info['title']
 			list.append(info)
 	return 'N', list
+
+###############################################################################
+def GetEBSEpisodeList(id, pageNo):
+	url = 'http://home.ebs.co.kr/audiobook/replay/4/list?c.page=%s&searchKeywordValue=0&orderBy=NEW&searchConditionValue=0&courseId=BP0PHPK0000000048&vodSort=NEW&searchStartDtValue=0&brdcDsCdFilter=RUN&searchKeyword=&userId=&searchEndDt=&searchCondition=&searchEndDtValue=0&stepId=01BP0PHPK0000000048&searchStartDt=&' % pageNo
+	request = urllib2.Request(url)
+	response = urllib2.urlopen(request)
+	data = response.read()
+	list = []
+	regax = 'fn_view\((.*?)\); return false;\">(.*?)<'
+	r = re.compile(regax)
+	m = r.findall(data)
+	for item in m:
+		info = {}
+		info['id'] = item[0].split(',')[0].replace('\'', '')
+		info['title'] = ChangeHTMLChar(item[1])
+		info['plot'] = ''
+		info['video'] = 'N'
+		info['url'] = 'dummy'
+		list.append(info)
+	
+	hasMore = 'Y' if len(list) == 20 else 'N'
+	return hasMore, list
+
+def GetEBSURL(id):
+	url = 'http://home.ebs.co.kr/audiobook/replay/4/view?courseId=BP0PHPK0000000048&stepId=01BP0PHPK0000000048&prodId=10314&pageNo=1&lectId=%s&lectNm=&bsktPchsYn=&prodDetlId=&oderProdClsCd=&prodFig=&vod=A&oderProdDetlClsCd=' % id
+	request = urllib2.Request(url)
+	response = urllib2.urlopen(request)
+	data = response.read()
+	regax = 'ZoenAuthDecode\(\'(.*?)\''
+	r = re.compile(regax)
+	m = r.findall(data)
+	if len(m) == 1:
+		return m[0]
+	else:
+		return None
