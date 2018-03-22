@@ -308,7 +308,7 @@ def GetEBSEpisodeList(id, pageNo):
 	for item in m:
 		info = {}
 		info['id'] = item[0].split(',')[0].replace('\'', '')
-		info['title'] = ChangeHTMLChar(item[1])
+		info['title'] = ChangeHTMLChar(item[1])[13:]
 		info['plot'] = ''
 		info['video'] = 'N'
 		info['url'] = 'dummy'

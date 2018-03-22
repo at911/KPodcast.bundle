@@ -158,13 +158,11 @@ def EpisodeList(title, type, param, param2=None, pageNo='1'):
 	oc = ObjectContainer(title2 = unicode(title))
 	try:
 		hasMore, data = GetEpisodeList(type, param, pageNo)
-		Log('!!!!!!!!!!!!!!!!!!!!!!! %s ' % hasMore)
-		Log('!!!!!!!!!!!!!!!!!!!!!!! %s ' % data)
 		isUrl = 'N' if type == 'EBS' else 'Y'
 		for item in data:
 			param = item['id'] if type == 'EBS' else item['url']
 			id = item['id'] if type == 'EBS' else ''
-			if item['video'] == 'N' and Client.Product != 'Plex for iOS':
+			if item['video'] == 'N' :#and Client.Product != 'Plex for iOS':
 				oc.add(
 					CreateTrackObject(
 						url = param, title = unicode(item['title']), thumb = '', art = ART,
